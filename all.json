@@ -8,7 +8,7 @@
       "searchable": 1,
       "quickSearch": 1,
       "filterable": 1,
-      "ext": "https://raw.githubusercontent.com/adamvon/mytv/main/libvio.json"
+      "ext": "https://raw.githubusercontent.com/adamvonvon/xptv/refs/heads/main/libvio.json"
     },
     {
       "key": "csp_youknow",
@@ -18,7 +18,7 @@
       "searchable": 1,
       "quickSearch": 1,
       "filterable": 1,
-      "ext": "https://raw.githubusercontent.com/adamvon/mytv/main/youknow.json"
+      "ext": "https://raw.githubusercontent.com/adamvonvon/xptv/refs/heads/main/youknow.json"
     }
   ],
   "parses": [
