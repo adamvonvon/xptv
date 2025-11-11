@@ -1,0 +1,38 @@
+{
+  "sites": [
+    {
+      "key": "csp_libvio",
+      "name": "🌕Libvio影视",
+      "type": 3,
+      "api": "csp_XBPQ",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "ext": "https://raw.githubusercontent.com/adamvon/mytv/main/libvio.json"
+    },
+    {
+      "key": "csp_youknow",
+      "name": "🎬YouKnow影视",
+      "type": 3,
+      "api": "csp_XBPQ",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "ext": "https://raw.githubusercontent.com/adamvon/mytv/main/youknow.json"
+    }
+  ],
+  "parses": [
+    {
+      "name": "通用解析",
+      "type": 0,
+      "url": "https://jx.jsonplayer.com/player/?url="
+    },
+    {
+      "name": "夜空解析",
+      "type": 0,
+      "url": "https://jx.yparse.com/index.php?url="
+    }
+  ],
+  "lives": [],
+  "wallpaper": "https://picsum.photos/1920/1080"
+}
