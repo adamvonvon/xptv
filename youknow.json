@@ -1,6 +1,6 @@
 {
   "主页url": "https://www.youknow.tv",
-  "分类url": "https://www.youknow.tv/vodtype/{cateId}/page/{catePg}/",
+  "分类url": "https://www.youknow.tv/vodtype/{cateId}/page/{catePg}.html",
   "分类": "电影$2#剧集$1#综艺$3#动漫$4",
   "起始页": "1",
   "搜索url": "https://www.youknow.tv/search/{wd}/page/1/",
@@ -10,12 +10,14 @@
   "搜索链接": "href=\"&&\"",
   "搜索图片": "data-original=\"&&\"",
   "搜索副标题": "class=\"module-item-note\">&&</div>",
-  "影片二次截取": "class=\"module-item\">&&</div>",
+  "影片二次截取": "class=\"module-item\">&&class=\"module-item-note\"",
   "影片标题": "title=\"&&\"",
   "影片图片": "data-original=\"&&\"",
   "影片链接": "href=\"&&\"",
+  "影片链接前缀": "https://www.youknow.tv",
   "播放页面": "class=\"module-play-list\"&&</div>",
   "播放标题": "title=\"&&\"",
   "播放链接": "href=\"&&\"",
+  "播放链接前缀": "https://www.youknow.tv",
   "直接播放": "1"
 }
