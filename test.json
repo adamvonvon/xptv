@@ -4,15 +4,13 @@
       "key": "hanju7",
       "name": "韩剧网",
       "type": 3,
-      "api": "csp_hanju7",
-      "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/adamvonvon/xptv/main/hanju7.js"
+      "api": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/adamvonvon/xptv/main/hanju7.js"
     },
     {
       "key": "cupfox",
       "name": "茶杯狐",
       "type": 3,
-      "api": "csp_cupfox",
-      "ext": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/adamvonvon/xptv/main/cupfox.js"
+      "api": "https://ghp.xptvhelper.link/https://raw.githubusercontent.com/adamvonvon/xptv/main/cupfox.js"
     }
   ]
 }
