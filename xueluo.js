@@ -3,9 +3,10 @@
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const SITE = 'https://v.xl01.cc.ua';
-const API = `${SITE}/api.php/provide/vod/`;
+// 强制使用 JSON 格式的接口路径，避免默认返回 XML 导致解析失败
+const API = `${SITE}/api.php/provide/vod/at/json/`;
 
-// 1. 識別源資訊
+// 1. 识别源信息
 async function getLocalInfo() {
   return jsonify({
     ver: 1,
@@ -15,7 +16,7 @@ async function getLocalInfo() {
   });
 }
 
-// 2. 定義首頁標籤 (Tabs)
+// 2. 定义首页标签 (Tabs)
 async function getConfig() {
   return jsonify({
     ver: 1,
@@ -30,14 +31,13 @@ async function getConfig() {
   });
 }
 
-// 3. 獲取分類影片列表
+// 3. 获取分类影片列表
 async function getCards(ext) {
   ext = argsify(ext);
   const { id, page = 1 } = ext;
   const list = [];
   
   try {
-    // 這裡使用 ac=detail 確保能直接獲取到封面 (vod_pic) 和備註 (vod_remarks)
     const url = `${API}?ac=detail&t=${id}&pg=${page}`;
     const { data } = await $fetch.get(url, { 
       headers: { 'User-Agent': UA, 'Referer': SITE + '/' } 
@@ -52,7 +52,7 @@ async function getCards(ext) {
           vod_name: item.vod_name,
           vod_pic: item.vod_pic || '',
           vod_remarks: item.vod_remarks || '',
-          ext: { id: item.vod_id.toString() } // 將 ID 傳遞給 getTracks
+          ext: { id: item.vod_id.toString() } // 将 ID 传递给 getTracks
         });
       });
     }
@@ -63,7 +63,7 @@ async function getCards(ext) {
   return jsonify({ list, page });
 }
 
-// 4. 獲取影片播放線路與集數
+// 4. 获取影片播放线路与集数
 async function getTracks(ext) {
   ext = argsify(ext);
   const { id } = ext;
@@ -79,7 +79,7 @@ async function getTracks(ext) {
     const item = json.list && json.list[0];
     
     if (item && item.vod_play_from && item.vod_play_url) {
-      // MacCMS 資料格式: 多線路用 $$$ 分隔
+      // MacCMS 数据格式: 多线路用 $$$ 分隔
       const playFroms = item.vod_play_from.split('$$$');
       const playUrls = item.vod_play_url.split('$$$');
       
@@ -88,14 +88,14 @@ async function getTracks(ext) {
         const urlsString = playUrls[i];
         if (!urlsString) continue;
         
-        // 單一線路內的集數用 # 分隔，集數名稱與連結用 $ 分隔
+        // 单一线路内的集数用 # 分隔，集数名称与链接用 $ 分隔
         const tracks = [];
         urlsString.split('#').forEach(ep => {
           const parts = ep.split('$');
           if (parts.length >= 2) {
             tracks.push({
               name: parts[0],
-              ext: { url: parts[1] } // 將播放 URL 傳遞給 getPlayinfo
+              ext: { url: parts[1] } // 将播放 URL 传递给 getPlayinfo
             });
           }
         });
@@ -115,14 +115,12 @@ async function getTracks(ext) {
   return jsonify({ list });
 }
 
-// 5. 解析真實播放位址
+// 5. 解析真实播放地址
 async function getPlayinfo(ext) {
   try {
     ext = argsify(ext);
     const { url } = ext;
     
-    // MacCMS API 通常直接返回 .m3u8 或是直連的 iframe 網址
-    // 如果是直連，就直接回傳，讓 XPTV 處理播放
     return jsonify({
       urls: url ? [url] : [],
       headers: [{ 
@@ -136,7 +134,7 @@ async function getPlayinfo(ext) {
   }
 }
 
-// 6. 搜尋功能
+// 6. 搜索功能
 async function search(ext) {
   ext = argsify(ext);
   const { text, wd, page = 1 } = ext;
