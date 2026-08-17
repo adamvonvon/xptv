@@ -1,5 +1,5 @@
 // [source-name]: 雪落影视
-// [source-type]: HTML Scraping (MacCMS 通用前端解析)
+// [source-type]: HTML Scraping (定制主题解析)
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const SITE = 'https://v.xl01.cc.ua';
@@ -14,16 +14,17 @@ async function getLocalInfo() {
 }
 
 async function getConfig() {
+  // 根据截图上的 URL 结构，分类路由是 /s/all?type=X 的形式
   return jsonify({
     ver: 1,
     title: '雪落影视',
     site: SITE,
     tabs: [
-      // 使用 MacCMS 默认的分类路径作为 id
-      { name: '电影', ext: { id: '/vodtype/1' }, ui: 1 },
-      { name: '连续剧', ext: { id: '/vodtype/2' }, ui: 1 },
-      { name: '综艺', ext: { id: '/vodtype/3' }, ui: 1 },
-      { name: '动漫', ext: { id: '/vodtype/4' }, ui: 1 }
+      { name: '全部', ext: { id: '/s/all?type=0' }, ui: 1 },
+      { name: '电影', ext: { id: '/s/all?type=1' }, ui: 1 }, // 盲猜 type=1 是电影
+      { name: '电视剧', ext: { id: '/s/all?type=2' }, ui: 1 }, // 盲猜 type=2 是电视剧
+      { name: '综艺', ext: { id: '/s/all?type=3' }, ui: 1 },
+      { name: '动漫', ext: { id: '/s/all?type=4' }, ui: 1 }
     ]
   });
 }
@@ -34,8 +35,8 @@ async function getCards(ext) {
   const list = [];
   
   try {
-    // 构造 MacCMS 标准的分页 URL
-    const url = `${SITE}${id}-${page}.html`;
+    // 构造请求 URL，根据截图的 URL 拼接分页参数
+    const url = `${SITE}${id}&page=${page}`; 
     const { data } = await $fetch.get(url, { 
       headers: { 'User-Agent': UA, 'Referer': SITE + '/' } 
     });
@@ -43,24 +44,22 @@ async function getCards(ext) {
     const cheerio = createCheerio();
     const $ = cheerio.load(data);
     
-    // 兼容多种 MacCMS 主流主题的卡片选择器
-    const items = $('.module-item, .stui-vodlist__box, .myui-vodlist__box, .public-list-box, .pack-packcover, .v-item');
-    
-    items.each((i, el) => {
+    // 💥 使用从截图中获取的确切 class：movie-card 💥
+    $('.movie-card').each((i, el) => {
       const $el = $(el);
-      // 提取链接和标题
-      const $a = $el.find('a').first();
-      const vodUrl = $a.attr('href') || '';
-      const vodName = $a.attr('title') || $el.find('.title, .module-item-title').text().trim() || '';
       
-      // 提取图片（兼容原生 src 以及各种 Lazy Load 属性）
-      const $img = $el.find('img').first();
-      let vodPic = $img.attr('data-original') || $img.attr('data-src') || $img.attr('src') || '';
+      const $a = $el.find('a.card-img');
+      const vodUrl = $a.attr('href') || '';
+      const vodName = $a.attr('title') || '';
+      
+      // 提取图片（优先拿懒加载的 data-src）
+      const $img = $a.find('img.fade-in');
+      let vodPic = $img.attr('data-src') || $img.attr('src') || '';
       if (vodPic && vodPic.startsWith('//')) vodPic = 'https:' + vodPic;
       else if (vodPic && vodPic.startsWith('/')) vodPic = SITE + vodPic;
       
-      // 提取更新集数或备注
-      const vodRemarks = $el.find('.module-item-text, .pic-text, .remarks, .pack-prb').first().text().trim() || '';
+      // 提取更新集数或备注（截图里的 2026-08-02 和评分）
+      const vodRemarks = $el.find('.card-info').text().replace(/\s+/g, ' ').trim() || $el.find('.rating-badge').text().trim() || '';
 
       if (vodUrl && vodName) {
         list.push({
@@ -68,7 +67,7 @@ async function getCards(ext) {
           vod_name: vodName,
           vod_pic: vodPic,
           vod_remarks: vodRemarks,
-          ext: { url: vodUrl }
+          ext: { url: vodUrl } // 把相对路径传给 getTracks
         });
       }
     });
@@ -93,14 +92,13 @@ async function getTracks(ext) {
     const cheerio = createCheerio();
     const $ = cheerio.load(data);
     
-    // 提取播放线路名称 (Tab)
+    // 因为还没看到详情页，所以这里使用“广撒网”策略匹配常见的线路和播放列表
     const sources = [];
-    $('.module-tab-item, .nav-tabs li, .stui-pannel__head h3').each((i, el) => {
+    $('.play-source, .nav-tabs li, .stui-pannel__head h3, .xl-play-tab, .play-tab a, .module-tab-item').each((i, el) => {
       sources.push($(el).text().trim().replace(/ /g, '') || `线路${i + 1}`);
     });
     
-    // 提取对应线路的集数列表
-    $('.module-play-list, .stui-content__playlist, .myui-content__list').each((i, el) => {
+    $('.play-list, .xl-play-list, .playlist, .stui-content__playlist, .myui-content__list, .module-play-list').each((i, el) => {
       const tracks = [];
       $(el).find('a').each((j, a) => {
         const $a = $(a);
@@ -121,7 +119,6 @@ async function getTracks(ext) {
         });
       }
     });
-    
   } catch (e) {
     console.error('getTracks error:', e);
   }
@@ -139,13 +136,12 @@ async function getPlayinfo(ext) {
       headers: { 'User-Agent': UA, 'Referer': SITE + '/' } 
     });
     
-    // 尝试直接提取页面中嵌入的 MacCMS 播放器变量[span_1](start_span)[span_1](end_span)
+    // 尝试提取常见的 player_aaaa 变量
     const playerMatch = data.match(/var\s+player_aaaa\s*=\s*(\{[^<]+?\})\s*;?/);
     if (playerMatch) {
       const playerInfo = JSON.parse(playerMatch[1]);
       let realUrl = playerInfo.url || playerInfo.vid || '';
       
-      // 检查是否是被加密的链接 (MacCMS 常用的简单加密)
       if (playerInfo.encrypt == 1) {
         realUrl = decodeURIComponent(realUrl);
       } else if (playerInfo.encrypt == 2) {
@@ -187,6 +183,7 @@ async function search(ext) {
   if (!keyword) return jsonify({ list, page });
   
   try {
+    // 兼容两套可能的搜索路径
     const url = `${SITE}/vodsearch/${encodeURIComponent(keyword)}----------${page}---.html`;
     const { data } = await $fetch.get(url, { 
       headers: { 'User-Agent': UA, 'Referer': SITE + '/' } 
@@ -195,21 +192,20 @@ async function search(ext) {
     const cheerio = createCheerio();
     const $ = cheerio.load(data);
     
-    // 兼容搜索结果页面的不同卡片结构[span_2](start_span)[span_2](end_span)
-    const items = $('.module-search-item, .stui-vodlist__media li, .myui-vodlist__media li, .module-item');
-    
-    items.each((i, el) => {
+    // 搜索页极有可能复用 movie-card
+    $('.movie-card, .module-search-item, .stui-vodlist__media li').each((i, el) => {
       const $el = $(el);
-      const $a = $el.find('a').first();
-      const vodUrl = $a.attr('href') || '';
-      const vodName = $a.attr('title') || $el.find('.title, .module-item-title').text().trim() || $el.find('h3').text().trim() || '';
       
-      const $img = $el.find('img').first();
-      let vodPic = $img.attr('data-original') || $img.attr('data-src') || $img.attr('src') || '';
+      const $a = $el.find('a.card-img').length ? $el.find('a.card-img') : $el.find('a').first();
+      const vodUrl = $a.attr('href') || '';
+      const vodName = $a.attr('title') || $el.find('h3').text().trim() || '';
+      
+      const $img = $a.find('img');
+      let vodPic = $img.attr('data-src') || $img.attr('src') || '';
       if (vodPic && vodPic.startsWith('//')) vodPic = 'https:' + vodPic;
       else if (vodPic && vodPic.startsWith('/')) vodPic = SITE + vodPic;
       
-      const vodRemarks = $el.find('.video-info, .pic-text, .remarks').text().trim() || '';
+      const vodRemarks = $el.find('.card-info').text().trim() || '';
 
       if (vodUrl && vodName) {
         list.push({
