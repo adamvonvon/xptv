@@ -1,5 +1,5 @@
 // [source-name]: 雪落影视
-// [source-type]: HTML Scraping (横屏海报与播放修复版)
+// [source-type]: HTML Scraping (横屏海报与去广告播放完美修复版)
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const SITE = 'https://v.xl01.cc.ua';
@@ -86,13 +86,6 @@ async function getTracks(ext) {
     const cheerio = createCheerio();
     const $ = cheerio.load(data);
     
-    // 提取播放线路名称
-    const sourceNames = [];
-    $('.tab-item, .play-from li, .source-item, h3').each((i, el) => {
-      const txt = $(el).text().trim();
-      if (txt) sourceNames.push(txt);
-    });
-
     const tracks = [];
     // 精准匹配所有包含 /play/ 的选集地址
     $('a').each((i, el) => {
@@ -100,7 +93,6 @@ async function getTracks(ext) {
       const href = $el.attr('href') || '';
       const name = $el.text().trim();
       if (href.includes('/play/') && name && !name.includes('首页') && !name.includes('更多')) {
-        // 去重防重复添加
         if (!tracks.some(t => t.ext.url === href)) {
           tracks.push({
             name: name,
@@ -136,35 +128,35 @@ async function getPlayinfo(ext) {
     const cheerio = createCheerio();
     const $ = cheerio.load(data);
 
-    // 1. 尝试直接从页面脚本中提取播放直链 (m3u8 / mp4)
-    const m3u8Match = data.match(/https?:\/\/[^\s"'<>]+?\.m3u8[^\s"'<>]*/i) || data.match(/https?:\/\/[^\s"'<>]+?\.mp4[^\s"'<>]*/i);
-    if (m3u8Match) {
-      let directUrl = m3u8Match[0].replace(/\\/g, '');
-      return jsonify({
-        urls: [directUrl],
-        headers: [{ 'User-Agent': UA, 'Referer': playUrl }]
-      });
-    }
-
-    // 2. 尝试从 iframe 或播放器容器中提取嵌套地址
-    const iframeSrc = $('iframe').attr('src');
+    // 1. 过滤广告 iframe，提取核心播放嵌套页
+    const iframeSrc = $('iframe').map((i, el) => $(el).attr('src')).get().find(src => src && !src.includes('ads') && !src.includes('advert'));
+    
     if (iframeSrc) {
       let realIframe = iframeSrc;
       if (realIframe.startsWith('//')) realIframe = 'https:' + realIframe;
       else if (realIframe.startsWith('/')) realIframe = SITE + realIframe;
       
       return jsonify({
-        parse: 1, // 启用内置解析器
-        url: realIframe,
+        parse: 1, // 开启内置解析器自动剥离外层广告 iframe
+        urls: [realIframe],
         headers: { 'User-Agent': UA, 'Referer': playUrl }
       });
     }
 
-    // 3. 兜底：如果页面内含有 ckplayer / dplayer 等配置的 json 链接
-    const urlMatch = data.match(/["'](https?:\/\/[^"'\s]+?\.(m3u8|mp4)[^"'\s]*)["']/i);
-    if (urlMatch) {
+    // 2. 尝试从内联脚本中匹配带有真实播放地址的变量
+    const scriptMatches = data.match(/url\s*:\s*["'](https?:\/\/[^"'\s]+?\.(m3u8|mp4)[^"'\s]*)["']/i);
+    if (scriptMatches && scriptMatches[1]) {
       return jsonify({
-        urls: [urlMatch[1]],
+        urls: [scriptMatches[1]],
+        headers: [{ 'User-Agent': UA, 'Referer': playUrl }]
+      });
+    }
+
+    // 3. 全局兜底正则抓取 m3u8 直链
+    const m3u8Match = data.match(/https?:\/\/[^\s"'<>]+?\.m3u8[^\s"'<>]*/i);
+    if (m3u8Match) {
+      return jsonify({
+        urls: [m3u8Match[0].replace(/\\/g, '')],
         headers: [{ 'User-Agent': UA, 'Referer': playUrl }]
       });
     }
@@ -185,7 +177,7 @@ async function search(ext) {
   
   try {
     const url = `${SITE}/s/all?keyword=${encodeURIComponent(keyword)}`;
-    const { data } = varData = await $fetch.get(url, { 
+    const { data } = await $fetch.get(url, { 
       headers: { 'User-Agent': UA, 'Referer': SITE + '/' } 
     });
     
