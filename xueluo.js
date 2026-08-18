@@ -1,5 +1,5 @@
 // [source-name]: 雪落影视
-// [source-type]: HTML Scraping (横屏海报与去广告播放完美修复版)
+// [source-type]: HTML Scraping (精简美化与原生播放嗅探版)
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const SITE = 'https://v.xl01.cc.ua';
@@ -19,11 +19,11 @@ async function getConfig() {
     title: '雪落影视',
     site: SITE,
     tabs: [
-      { name: '全部', ext: { id: '/s/all?type=0' }, ui: 2 }, // ui:2 适配横屏/矩形海报卡片
-      { name: '电影', ext: { id: '/s/all?type=1' }, ui: 2 },
-      { name: '剧集', ext: { id: '/s/all?type=2' }, ui: 2 },
-      { name: '综艺', ext: { id: '/s/all?type=3' }, ui: 2 },
-      { name: '动漫', ext: { id: '/s/all?type=4' }, ui: 2 }
+      { name: '全部', ext: { id: '/s/all?type=0' }, ui: 1 },
+      { name: '电影', ext: { id: '/s/all?type=1' }, ui: 1 },
+      { name: '剧集', ext: { id: '/s/all?type=2' }, ui: 1 },
+      { name: '综艺', ext: { id: '/s/all?type=3' }, ui: 1 },
+      { name: '动漫', ext: { id: '/s/all?type=4' }, ui: 1 }
     ]
   });
 }
@@ -87,7 +87,6 @@ async function getTracks(ext) {
     const $ = cheerio.load(data);
     
     const tracks = [];
-    // 精准匹配所有包含 /play/ 的选集地址
     $('a').each((i, el) => {
       const $el = $(el);
       const href = $el.attr('href') || '';
@@ -121,45 +120,13 @@ async function getPlayinfo(ext) {
     const { url } = ext;
     const playUrl = url.startsWith('http') ? url : SITE + url;
     
-    const { data } = await $fetch.get(playUrl, { 
-      headers: { 'User-Agent': UA, 'Referer': SITE + '/' } 
+    // 核心大招：直接将播放页整体交给客户端内核去加载并嗅探视频
+    // 这样客户端自带的广告拦截和 m3u8 自动嗅探器会直接接管页面，完美跳过前端防刷和广告
+    return jsonify({
+      parse: 1,
+      url: playUrl,
+      headers: { 'User-Agent': UA, 'Referer': SITE + '/' }
     });
-    
-    const cheerio = createCheerio();
-    const $ = cheerio.load(data);
-
-    // 1. 过滤广告 iframe，提取核心播放嵌套页
-    const iframeSrc = $('iframe').map((i, el) => $(el).attr('src')).get().find(src => src && !src.includes('ads') && !src.includes('advert'));
-    
-    if (iframeSrc) {
-      let realIframe = iframeSrc;
-      if (realIframe.startsWith('//')) realIframe = 'https:' + realIframe;
-      else if (realIframe.startsWith('/')) realIframe = SITE + realIframe;
-      
-      return jsonify({
-        parse: 1, // 开启内置解析器自动剥离外层广告 iframe
-        urls: [realIframe],
-        headers: { 'User-Agent': UA, 'Referer': playUrl }
-      });
-    }
-
-    // 2. 尝试从内联脚本中匹配带有真实播放地址的变量
-    const scriptMatches = data.match(/url\s*:\s*["'](https?:\/\/[^"'\s]+?\.(m3u8|mp4)[^"'\s]*)["']/i);
-    if (scriptMatches && scriptMatches[1]) {
-      return jsonify({
-        urls: [scriptMatches[1]],
-        headers: [{ 'User-Agent': UA, 'Referer': playUrl }]
-      });
-    }
-
-    // 3. 全局兜底正则抓取 m3u8 直链
-    const m3u8Match = data.match(/https?:\/\/[^\s"'<>]+?\.m3u8[^\s"'<>]*/i);
-    if (m3u8Match) {
-      return jsonify({
-        urls: [m3u8Match[0].replace(/\\/g, '')],
-        headers: [{ 'User-Agent': UA, 'Referer': playUrl }]
-      });
-    }
 
   } catch (error) {
     console.error('getPlayinfo error:', error);
